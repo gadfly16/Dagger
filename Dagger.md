@@ -18,13 +18,15 @@ Dagger is built on a minimal but sufficient set of foundational concepts:
 
 The fundamental memory model in Dagger is a labeled tree of nodes. Everything in the system—data, code, and metadata—exists within this unified structure. The tree serves as both the storage and computational model.
 
-There are four primary node types:
-- **Trees**: Can have both metadata and children
-- **Numbers**: Have metadata but no children, representing atomic values
-- **References**: Ordered lists pointing to other nodes within the tree
-  - Can contain **Numbers** (pointing to the Nth element of a tree)
-  - Can contain **Names** (pointing to nodes labeled with that name)
-- **Names**: Human readable reference to a node in the given scope
+There are four primary node types called *primitives*:
+  - **Trees**: Can have both metadata and children
+  - **Numbers**: Have metadata but no children, representing atomic values
+  - **Names**: Human readable reference to a node in the given scope
+
+References are technically `tree` nodes, but they are so essential that we discuss them here together with the primitives. All references consists of a path that is an arbitrary sequence of indices and identifiers. There are three kind of built-in reference types.
+  - **Adress**: returns the address of the referenced node
+  - **Eval**: if the referenced node is a function call it gives back the return value of the function, otherwise returns the value
+  - **Value**: always returns the value even if it's a function call in that case the return value will be the function call itself
 
 This unified representation allows consistent access patterns across the system while providing both positional and named access to tree elements. The reference mechanism enables construction of complex data structures, including directed acyclic graphs.
 
@@ -39,7 +41,7 @@ Numbers are represented as arbitrary-precision floating point values by default,
 
 ### Serialization
 
-Dagger provides a standard serialization mechanism for both storage and communication. The serialized form preserves both values and metadata (including constraints and interpretations), enabling perfect reconstruction of the tree after serialization.
+Dagger provides a standard serialization mechanism for both storage and communication called *Standard Binary Representation* or SBR for short. The serialized form preserves labels, values and metadata enabling perfect reconstruction from the serialized version.
 
 ### Concurrency Model
 
@@ -96,3 +98,5 @@ The development approach focuses first on proving the concept's viability before
 - **Integrated environment**: Eliminate artificial boundaries between development tools and applications
 
 Dagger reimagines computing as a coherent environment where the distinction between using a computer and programming it dissolves, creating a system exactly as complex as it needs to be.
+
+END OF DAGGER INTRODUCTION
