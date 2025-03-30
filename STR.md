@@ -1,41 +1,31 @@
 # Dagger Standard Textual Representation (STR)
 
-## Introduction
-
-The Standard Textual Representation (STR) is the human-readable syntax for Dagger's tree-based computational model. While Dagger uses a Standard Binary Representation (SBR) internally, STR provides an interface for viewing and editing tree structures in a textual format.
-
-STR unifies the representation of both data and code as trees, reflecting Dagger's fundamental philosophy of treating all computational elements as part of a single coherent structure. The syntax is designed to be concise yet expressive, enabling direct manipulation of Dagger's tree structures while remaining readable for human users.
-
-## Core Concepts
-
-1. **Single Node Program**: An STR program describes a single node, as Dagger's model does not support multiple nodes without a parent.
-
-2. **Tree Structure**: All entities are represented in a unified tree structure with labeled branches.
-
-3. **References and Dereferences**: Names resolve to indices in the tree, while dereferences retrieve values at those locations.
-
-4. **Metadata**: Metadata is a first-class part of the tree, accessible via the special `_` label.
-
-5. **Function Calls**: Function calls use indentation-based delimitation rather than explicit terminators.
-
-6. **Scoping**: Names resolve to the closest definition found upstream in the tree hierarchy.
+The Standard Textual Representation (STR) is Dagger's human-readable syntax for representing its tree-based computational model. While Dagger uses a Standard Binary Representation (SBR) internally, STR provides the interface for viewing and editing tree structures textually.
 
 ## Formal Syntax (BNF)
 
 ```
-<program> ::= <node>
+<STR> ::= <node>
 
 <node> ::= <number>
          | <name>
-         | <labeled-node>
          | <tree>
-         | <dereference>
-         | <function-call>
-         | <string>
 
 <number> ::= [+-]?[0-9]+("."[0-9]+)?([eE][+-]?[0-9]+)?
 
 <name> ::= [a-zA-Z_][a-zA-Z0-9_]*
+
+<tree> ::= <tree-literal>
+         | <call>
+         | <path>
+         | <eval-reference>
+         | <value-reference>
+         | <string>
+
+<tree-literal> ::= "{" <whitespace>* <tree-content>? <whitespace>* "}"
+
+<tree-content> ::= <labeled-node> (<whitespace>+ <labeled-node>)*
+                 | <node> (<whitespace>+ <node>)*
 
 <labeled-node> ::= <label-sequence> <node>
 
@@ -44,25 +34,29 @@ STR unifies the representation of both data and code as trees, reflecting Dagger
 <label> ::= <name>":" <whitespace>*
           | <name>":" <newline> <whitespace>*
 
-<tree> ::= "{" <whitespace>* <tree-content>? <whitespace>* "}"
+<path> ::= <bracket-path>
+         | <dot-path>
 
-<tree-content> ::= <node> (<whitespace>+ <node>)*
+<bracket-path> ::= "[" <path-element> (<whitespace>+ <path-element>)* "]"
 
-<whitespace> ::= [ \t\n\r]
+<path-element> ::= <name>
+                 | <number-literal>
+                 | <ancestor>
 
-<newline> ::= "\n" | "\r\n"
+<dot-path> ::= <name> ("." <name>)*
+             | <ancestor> ("." <name>)*
 
-<reference> ::= <name>
-              | <reference>"/"<name>
-              | <reference>"/"<number-literal>
-              | "."
-              | "."<reference>
+<ancestor> ::= "." <dot>*
+
+<dot> ::= "."
 
 <number-literal> ::= [0-9]+
 
-<dereference> ::= "@"<reference>
+<eval-reference> ::= "@" <path>
 
-<function-call> ::= <name> <inline-arguments>? <newline>? <indented-arguments>?
+<value-reference> ::= "^" <path>
+
+<call> ::= <name> <inline-arguments>? <newline>? <indented-arguments>?
 
 <inline-arguments> ::= <whitespace>+ <function-argument> (<whitespace>+ <function-argument>)*
 
@@ -87,137 +81,148 @@ STR unifies the representation of both data and code as trees, reflecting Dagger
 
 <hex-digit> ::= [0-9a-fA-F]
 
+<whitespace> ::= [ \t\n\r]
+
+<newline> ::= "\n" | "\r\n"
+
 <comment> ::= "//" <any-character-except-newline>* <newline>
 ```
 
-## Syntactic Decisions
+## Comprehensive Example
 
-### Multiple Labels
-
-STR allows multiple labels to refer to the same node:
+The following example demonstrates the various syntactic elements of Dagger's STR that we've explicitly covered:
 
 ```
-x: y: z: 123
-
-longLabel:
-anotherLabel:
-    add 1 2
-```
-
-Each label in the sequence creates a reference to the same node, enabling flexibility in naming and organization.
-
-### Indentation-Based Function Call Termination
-
-Function calls are terminated by indentation rather than explicit delimiters:
-
-```
-add 1 2             // Inline arguments
-multiply            // Function name followed by indented arguments
-    3
-    4
-```
-
-A function call terminates when:
-- A line with indentation less than or equal to the function name's indentation is encountered
-- End of file is reached (in case the STR only describes a single function call)
-
-### Label-Value Decoupling
-
-Labels can be placed on lines preceding the value they label, with arbitrary whitespace (including newlines) between the colon and the value:
-
-```
-myVeryLongLabel:
-    123
-
-multiLine:
-    {
-      1
-      2
-      3
-    }
-```
-
-This allows for more flexible formatting, especially with long labels or complex values.
-
-### Trees and Whitespace
-
-Within trees, whitespace separates siblings:
-
-```
-{ 1 2 3 }           // Compact form
-{                   // Expanded form
-  1
-  2
-  3
-}
-```
-
-Both forms are semantically identical.
-
-### Metadata
-
-Metadata is accessed via the special `_` label:
-
-```
-value: {
-  _: { kind: int8 }
-  42
-}
-```
-
-### Scope and References
-
-Names resolve to the closest definition upstream in the tree. Dereferences with `@` retrieve values:
-
-```
-x: 5
-y: @x              // Contains 5
-z: {
-  x: 10
-  value: @x        // Contains 10 (closest upstream x)
-  outer: @../x     // Contains 5 (explicitly references outer x)
-}
-```
-
-## Examples
-
-### Data Structure
-```
-person: {
-  name: "John Doe"
-  age: 30
-  address: {
-    street: "123 Main St"
-    city: "Anytown"
+// A comprehensive example of Dagger's STR
+data: {
+  // Basic node types
+  number_examples: {
+    integer: 42
+    negative: -17
+    decimal: 3.14159
+    scientific: 6.02e23
   }
-}
-```
 
-### Function Call
-```
-calculate
-  x: 10
-  y: 20
-  operation: "multiply"
-```
+  // String examples
+  string_examples: {
+    simple: "Hello, world!"
+    escaped: "Quotes \"inside\" a string"
+    multiline: "This string
+spans multiple
+lines"
+  }
 
-### Complex Structure with Multiple Labels
-```
-data:
-results:
-  {
-    _: { kind: record }
-    values: {
-      first: 10
-      second: 20
+  // Tree with unlabeled nodes
+  tags: { "important" "urgent" "critical" }
+
+  // Trees with labeled nodes
+  person: {
+    name: "John Doe"
+    age: 30
+    contact: {
+      email: "john@example.com"
+      phone: "555-1234"
     }
-    summary:
+  }
+
+  // Multiple labels for the same node
+  primary:
+  main:
+  first: {
+    value: 100
+    description: "Node with multiple labels"
+  }
+
+  // Metadata using the special _ label
+  config: {
+    _: {
+      kind: "settings"
+      version: 2
+    }
+    timeout: 30
+    maxRetries: 3
+  }
+
+  // Path examples
+  paths: {
+    // Bracket notation (canonical form)
+    canonical_path: [person name]
+    with_index: [array 2]
+    parent_ref: [.. number_examples]
+    root_ref: [. string_examples]
+    ancestor_ref: [... some_property]
+
+    // Dot notation (sugar for name-only paths)
+    dot_path: person.contact.email
+    parent_dot: ..number_examples.integer
+    root_dot: .data.person.age
+  }
+
+  // Array-like structure
+  array: {
+    0: "First"
+    1: "Second"
+    2: "Third"
+  }
+
+  // References
+  references: {
+    // Eval references - retrieve and evaluate
+    eval_bracket: @[person age]
+    eval_dot: @person.contact.phone
+    eval_parent: @..array.1
+    eval_root: @.data.config.timeout
+
+    // Value references - retrieve without evaluation
+    value_bracket: ^[paths canonical_path]
+    value_dot: ^paths.dot_path
+  }
+
+  // Function calls
+  calculations: {
+    // Inline arguments
+    sum: add 10 20
+
+    // Indented arguments
+    product:
+      multiply
+        5
+        6
+
+    // Mixed style with labeled arguments
+    complex:
       calculate
-        @data/values/first
-        @data/values/second
+        x: 15
+        y: 7
+        operation: "divide"
+
+    // Using references as arguments
+    reference_calc: add @[number_examples integer] @[number_examples decimal]
+
+    // Nested function calls
+    nested:
+      process
+        input: {
+          value: 42
+          type: "number"
+        }
+        options: {
+          normalize: true
+          scale: 2
+        }
   }
+}
 ```
 
-This STR syntax provides a clean, flexible way to view and edit Dagger's tree structures while maintaining the unified conceptual model that makes Dagger powerful.
+This example demonstrates:
+- Basic node types (numbers, names, trees)
+- Strings with various formats
+- Tree literals with labeled and unlabeled nodes
+- Multiple labels for the same node
+- Metadata using the special `_` label
+- Paths using both bracket and dot notation
+- References (both eval and value)
+- Function calls in various forms (inline, indented, and mixed)
+- Comments
 
-END OF STR DOC
+The example showcases the syntax elements we've explicitly covered, providing a comprehensive illustration of Dagger's STR without introducing undefined concepts.
