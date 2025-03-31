@@ -1,4 +1,4 @@
-# Dagger Standard Textual Representation (STR)
+# Document 3: Dagger Standard Textual Representation (STR)
 
 The Standard Textual Representation (STR) is Dagger's human-readable syntax for representing its tree-based computational model. While Dagger uses a Standard Binary Representation (SBR) internally, STR provides the interface for viewing and editing tree structures textually.
 
